@@ -11,9 +11,9 @@ class RegistrationWindow(QMainWindow):
         self.setWindowTitle("Registration")
         self.setGeometry(100, 100, 800, 600)  # размеры окна
 
-        self.set_background()
+        self.set_background()                 # установка фона
 
-        # создали центральный виджет
+        # центральный виджет
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
@@ -40,6 +40,7 @@ class RegistrationWindow(QMainWindow):
         # чекбоксы на одной строке
         checkbox_layout = QHBoxLayout()
 
+        # чекбокс с исследуемым
         self.investigated_checkbox = QCheckBox("Исследуемый")
         self.investigated_checkbox.setStyleSheet("font-size: 14px; color: #333;")
         self.investigated_checkbox.setChecked(True) 
@@ -80,9 +81,23 @@ class RegistrationWindow(QMainWindow):
         self.password_input.setStyleSheet("padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 5px;")
         panel_layout.addWidget(self.password_input)
 
+        # поле подтверждения пароля (изначально скрыто)
+        self.confirm_password_label = QLabel("Подтвердите пароль:")
+        self.confirm_password_label.setStyleSheet("font-size: 14px; color: #333;")
+        self.confirm_password_label.setVisible(False)
+        panel_layout.addWidget(self.confirm_password_label)
+
+        self.confirm_password_input = QLineEdit()
+        self.confirm_password_input.setPlaceholderText("Подтвердите пароль")
+        self.confirm_password_input.setEchoMode(QLineEdit.Password)
+        self.confirm_password_input.setStyleSheet("padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 5px;")
+        self.confirm_password_input.setVisible(False)
+        panel_layout.addWidget(self.confirm_password_input)
+
         # кнопка регистрации
         register_button = QPushButton("Зарегистрироваться")
         register_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        register_button.clicked.connect(self.show_confirm_password)
         panel_layout.addWidget(register_button)
 
         # кнопка входа
@@ -100,6 +115,7 @@ class RegistrationWindow(QMainWindow):
         palette.setBrush(QPalette.Window, QBrush(pixmap.scaled(self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
 
+    # функция смены чекбокса исследователя
     def researcher_checkbox_changed(self):
         if self.researcher_checkbox.isChecked():
             self.investigated_checkbox.setChecked(False)
@@ -108,6 +124,7 @@ class RegistrationWindow(QMainWindow):
             self.investigated_checkbox.setChecked(True)
             self.role_label.setText("Вы: Исследуемый")
 
+    # функция смены чекбокса исследуемого
     def investigated_checkbox_changed(self):
         if self.investigated_checkbox.isChecked():
             self.researcher_checkbox.setChecked(False)
@@ -115,6 +132,11 @@ class RegistrationWindow(QMainWindow):
         else:
             self.researcher_checkbox.setChecked(True)
             self.role_label.setText("Вы: Исследователь")
+
+    # показываем поле для подтверждения пароля
+    def show_confirm_password(self):
+        self.confirm_password_label.setVisible(True)
+        self.confirm_password_input.setVisible(True)
 
 
 if __name__ == '__main__':
