@@ -1,5 +1,6 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QCheckBox, QDateEdit
+import sqlite3
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QCheckBox, QDateEdit, QComboBox, QMessageBox
 from PyQt5.QtGui import QPixmap, QPalette, QBrush
 from PyQt5.QtCore import Qt, QDate
 
@@ -38,6 +39,18 @@ class RegistrationWindow(QMainWindow):
         palette = self.palette()
         palette.setBrush(QPalette.Window, QBrush(pixmap.scaled(self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
         self.setPalette(palette)
+
+    def get_researchers(self):
+        try:
+            conn = sqlite3.connect("database/database.sqlite")
+            cursor = conn.cursor()
+            cursor.execute("SELECT Id, Full_name FROM Users WHERE Role = 'Исследователь'")
+            researchers = cursor.fetchall()
+            conn.close()
+            return researchers
+        except Exception as e:
+            print(f"Ошибка при получении списка исследователей: {e}")
+            return []
 
     # функция активация окна входа
     def run_initial_form(self):
@@ -228,6 +241,7 @@ class RegistrationWindow(QMainWindow):
         # кнопка завершения регистрации
         complete_button = QPushButton("Завершить регистрацию")
         complete_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        complete_button.clicked.connect(self.complete_researcher_registration)
         self.panel_layout.addWidget(complete_button)
 
         # кнопка отмены
@@ -298,6 +312,18 @@ class RegistrationWindow(QMainWindow):
         """)
         self.panel_layout.addWidget(self.dob_input)
 
+        researcher_label = QLabel("Мой исследователь:")
+        researcher_label.setStyleSheet("font-size: 14px; color: #333;")
+        self.panel_layout.addWidget(researcher_label)
+
+        self.researcher_combobox = QComboBox()
+        self.researcher_combobox.setStyleSheet("padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 5px;")
+        researchers = self.get_researchers()
+        self.researcher_combobox.addItem("Не выбрано", None)
+        for researcher in researchers:
+            self.researcher_combobox.addItem(researcher[1], researcher[0])
+        self.panel_layout.addWidget(self.researcher_combobox)
+
         # поле для рода деятельности
         occupation_label = QLabel("Род деятельности:")
         occupation_label.setStyleSheet("font-size: 14px; color: #333;")
@@ -310,6 +336,7 @@ class RegistrationWindow(QMainWindow):
         # кнопка завершения регистрации
         complete_button = QPushButton("Завершить регистрацию")
         complete_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        complete_button.clicked.connect(self.complete_investigated_registration)
         self.panel_layout.addWidget(complete_button)
 
         # кнопка отмены
@@ -322,6 +349,110 @@ class RegistrationWindow(QMainWindow):
     def return_to_initial_form(self):
         self.clear_layout()
         self.run_initial_form()
+
+    # функция регистрации исследователя
+    def complete_researcher_registration(self):
+        login = self.login_input.text()                               # снимаем логин
+        password = self.password_input.text()                         # снимаем пароль
+        confirm_password = self.confirm_password_input.text()         # снимаем подтверждение пароля
+        full_name = self.name_input.text()                            # снимаем фио
+        date_of_birth = self.dob_input.date().toString("yyyy-MM-dd")  # снимаем дату рождения
+
+        # если не все поля заполнены, то просим дозаполнить
+        if not all([login, password, confirm_password, full_name]):
+            QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены!")
+            return
+
+        # если пароли не совпадают, то просим чтобы совпали
+        if password != confirm_password:
+            QMessageBox.warning(self, "Ошибка", "Пароли не совпадают!")
+            return
+
+        # подключение к БД 
+        try:
+            conn = sqlite3.connect("database/database.sqlite")
+            cursor = conn.cursor()
+            
+            # выполнение SQL-запроса по добавлению в таблицу пользователей
+            cursor.execute("""
+                INSERT INTO Users (Full_name, Login, Password, Role, Date_of_birth, ResearcherId)
+                VALUES (?, ?, ?, 'Исследователь', ?, NULL)
+            """, (full_name, login, password, date_of_birth))
+            
+            user_id = cursor.lastrowid  # запрашиваем последний айдишник 
+            
+            # выполнение SQL-запроса по добавлению в таблицу исследователей
+            cursor.execute("""
+                INSERT INTO Researcher_Details (UserId, Number_of_patients)
+                VALUES (?, 0)
+            """, (user_id,))
+            
+            conn.commit()
+            QMessageBox.information(self, "Успех", "Исследователь успешно зарегистрирован!")
+            self.return_to_initial_form()
+        except sqlite3.IntegrityError as e:
+            QMessageBox.warning(self, "Ошибка", "Логин или ФИО уже существуют!")
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Произошла ошибка: {e}")
+        finally:
+            conn.close()
+
+    # функция регистрации исследуемого
+    def complete_investigated_registration(self):
+        login = self.login_input.text()                                # снимаем логин
+        password = self.password_input.text()                          # снимаем пароль
+        confirm_password = self.confirm_password_input.text()          # снимаем подтверждение пароля
+        full_name = self.name_input.text()                             # снимаем фио
+        date_of_birth = self.dob_input.date().toString("yyyy-MM-dd")   # снимаем дату рождения
+        researcher_id = self.researcher_combobox.currentData()         # снимаем выбранного исследователя
+        occupation = self.occupation_input.text()                      # снимаем род деятельности
+
+        # если не все поля заполнены, то просим дозаполнить
+        if not all([login, password, confirm_password, full_name, occupation]):
+            QMessageBox.warning(self, "Ошибка", "Все поля должны быть заполнены!")
+            return
+
+        # если пароли не совпадают, то просим чтобы совпали
+        if password != confirm_password:
+            QMessageBox.warning(self, "Ошибка", "Пароли не совпадают!")
+            return
+
+        # подключение к БД 
+        try:
+            conn = sqlite3.connect("database/database.sqlite")
+            cursor = conn.cursor()
+            
+            # выполнение SQL-запроса по добавлению в таблицу пользователей
+            cursor.execute("""
+                INSERT INTO Users (Full_name, Login, Password, Role, Date_of_birth, ResearcherId)
+                VALUES (?, ?, ?, 'Исследуемый', ?, ?)
+            """, (full_name, login, password, date_of_birth, researcher_id))
+            
+            user_id = cursor.lastrowid
+            
+            # выполнение SQL-запроса по добавлению в таблицу исследованных
+            cursor.execute("""
+                INSERT INTO Investigated_Details (UserId, Occupation, TasksPerSecondWithMusic, TasksPerSecondWithoutMusic)
+                VALUES (?, ?, NULL, NULL)
+            """, (user_id, occupation))
+            
+            # увеличиваем число исследуемых у выбранного исследователя
+            if researcher_id:
+                cursor.execute("""
+                    UPDATE Researcher_Details 
+                    SET Number_of_patients = Number_of_patients + 1 
+                    WHERE UserId = ?
+                """, (researcher_id,))
+            
+            conn.commit()
+            QMessageBox.information(self, "Успех", "Исследуемый успешно зарегистрирован!")
+            self.return_to_initial_form()
+        except sqlite3.IntegrityError as e:
+            QMessageBox.warning(self, "Ошибка", "Логин или ФИО уже существуют!")
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Произошла ошибка: {e}")
+        finally:
+            conn.close()
 
 
 if __name__ == '__main__':
