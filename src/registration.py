@@ -1,7 +1,7 @@
 import sys
 import sqlite3
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QCheckBox, QDateEdit, QComboBox, QMessageBox
-from PyQt5.QtGui import QPixmap, QPalette, QBrush
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QCheckBox, QDateEdit, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView 
+from PyQt5.QtGui import QPixmap, QPalette, QBrush, QFont
 from PyQt5.QtCore import Qt, QDate
 
 
@@ -132,6 +132,7 @@ class RegistrationWindow(QMainWindow):
         # кнопка входа
         self.login_button = QPushButton("Войти")
         self.login_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.login_button.clicked.connect(self.handle_login)
         self.panel_layout.addWidget(self.login_button)
 
     # функция очистки окна
@@ -453,6 +454,107 @@ class RegistrationWindow(QMainWindow):
             QMessageBox.warning(self, "Ошибка", f"Произошла ошибка: {e}")
         finally:
             conn.close()
+
+    # функция авторизации с проверкой по базе данных
+    def handle_login(self):
+        login = self.login_input.text()
+        password = self.password_input.text()
+
+        if not all([login, password]):
+            QMessageBox.warning(self, "Ошибка", "Логин и пароль должны быть заполнены!")
+            return
+
+        try:
+            conn = sqlite3.connect("database/database.sqlite")
+            cursor = conn.cursor()
+            cursor.execute("SELECT Id, Password, Role FROM Users WHERE Login = ?", (login,))
+            user = cursor.fetchone()
+
+            if user and user[1] == password:
+                user_id, _, role = user
+                if role == 'Исследуемый' and self.investigated_checkbox.isChecked():
+                    self.show_investigated_dashboard(user_id)
+                elif role == 'Исследователь' and self.researcher_checkbox.isChecked():
+                    self.show_researcher_dashboard(user_id)
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Роль не соответствует выбранной!")
+            else:
+                QMessageBox.warning(self, "Ошибка", "Неверный логин или пароль!")
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Произошла ошибка: {e}")
+        finally:
+            conn.close()
+
+    # окно исследуемого после авторизации
+    def show_investigated_dashboard(self, user_id):
+        self.clear_layout()
+        self.registration_panel.setFixedSize(300, 200)
+
+        start_test_button = QPushButton("Начать тест")
+        start_test_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.panel_layout.addWidget(start_test_button)
+
+        logout_button = QPushButton("Выйти")
+        logout_button.setStyleSheet("background-color: #f44336; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        logout_button.clicked.connect(self.return_to_initial_form)
+        self.panel_layout.addWidget(logout_button)
+
+    # окно исследователя после авторизации
+    def show_researcher_dashboard(self, user_id):
+        self.clear_layout()
+        self.registration_panel.setFixedSize(800, 500)  # Увеличиваем размер панели
+
+        logout_button = QPushButton("Выйти")
+        logout_button.setStyleSheet("background-color: #f44336; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        logout_button.clicked.connect(self.return_to_initial_form)
+        self.panel_layout.addWidget(logout_button)
+
+        # коннектимся к базе данных
+        try:
+            conn = sqlite3.connect("database/database.sqlite")
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT u.Full_name, u.Date_of_birth, id.Occupation, id.TasksPerSecondWithMusic, id.TasksPerSecondWithoutMusic
+                FROM Users u
+                LEFT JOIN Investigated_Details id ON u.Id = id.UserId
+                WHERE u.Role = 'Исследуемый' AND u.ResearcherId = ?
+            """, (user_id,))
+            subjects = cursor.fetchall()
+            conn.close()
+
+            table = QTableWidget()
+            table.setRowCount(len(subjects))
+            table.setColumnCount(5)
+            table.setHorizontalHeaderLabels(["ФИО", "Дата рождения", "Род деятельности", "Задач/сек с музыкой", "Задач/сек без музыки"])
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # растягиваем столбцы
+
+            # высота строк
+            for row in range(len(subjects)):
+                table.setRowHeight(row, 40)  # Устанавливаем высоту строки 40 пикселей
+
+            # шрифт заголовкой
+            header_font = QFont()
+            header_font.setPointSize(8)  # Размер шрифта для заголовков
+            table.horizontalHeader().setFont(header_font)
+
+            # заполняем таблицу
+            for row, subject in enumerate(subjects):
+                for col, value in enumerate(subject):
+                    item = QTableWidgetItem(str(value) if value is not None else "N/A")
+                    item.setTextAlignment(Qt.AlignCenter)
+                    font = QFont()
+                    font.setPointSize(8)  # размер шрифта для ячеек
+                    item.setFont(font)
+                    table.setItem(row, col, item)
+
+            self.panel_layout.addWidget(table)
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить данные: {e}")
+
+    def return_to_initial_form(self):
+        self.clear_layout()
+        self.registration_panel.setFixedSize(300, 450)
+        self.run_initial_form()
 
 
 if __name__ == '__main__':
