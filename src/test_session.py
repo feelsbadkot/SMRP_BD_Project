@@ -57,6 +57,7 @@ class TestWindow(QMainWindow):
         self.finish_button.clicked.connect(self.finish_test)
         self.layout.addWidget(self.finish_button)
 
+    # функция загрузки примера из бд
     def load_example(self, example_id):
         try:
             conn = sqlite3.connect("database/database.sqlite")
@@ -69,10 +70,12 @@ class TestWindow(QMainWindow):
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить пример: {e}")
             return None
 
+    # функция обновления таймера
     def update_timer(self):
         self.elapsed_seconds += 1
         self.timer_label.setText(f"Время: {self.elapsed_seconds} сек")
 
+    # функция смены примера
     def next_task(self):
         # проверяем ответ пользователя
         try:
@@ -94,47 +97,63 @@ class TestWindow(QMainWindow):
         else:
             self.finish_test()
 
+    # функция завершения теста
     def finish_test(self):
         # останавливаем таймер
         self.timer.stop()
         
-        # вычисляем результат: количество секунд на число правильных ответов 
-        seconds_per_task = self.elapsed_seconds / self.correct_answers if self.elapsed_seconds > 0 else 0
+        # вычисляем эффективность: число секунд / число правильных ответов
+        if self.correct_answers > 0:
+            efficiency = self.elapsed_seconds / self.correct_answers
+        else:
+            efficiency = float('inf')  # Если нет правильных ответов, эффективность бесконечна
 
-        # сохраняем результаты в Sessions
-        self.save_to_db(seconds_per_task)
+        # сохраняем результаты в таблицу Sessions
+        self.save_to_db(efficiency)
 
         # обновляем лучший результат в базе данных
-        self.update_best_result(seconds_per_task)
+        self.update_best_result(efficiency)
 
         # показываем результат
-        QMessageBox.information(self, "Результат", f"Тест завершён!\nПравильных ответов: {self.correct_answers}\nВремя: {self.elapsed_seconds} сек\nСекунд на правильный ответ: {seconds_per_task:.2f}")
+        if self.correct_answers > 0:
+            efficiency_display = f"{efficiency:.2f}"
+        else:
+            efficiency_display = "inf"
 
+        QMessageBox.information(self, "Результат", f"Тест завершён!\nПравильных ответов: {self.correct_answers}\nВремя: {self.elapsed_seconds} сек\nЭффективность (сек/правильный ответ): {efficiency_display}")
+
+        # закрываем окно теста
         self.close()
-
-    def save_to_db(self, tasks_per_second):
+            
+    # функций сохранения результатов в базу данных
+    def save_to_db(self, efficiency):
         try:
             conn = sqlite3.connect("database/database.sqlite")
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO Sessions (UserId, SessionDate, CorrectAnswers, ElapsedSeconds, TasksPerSecond, WithMusic)
+                INSERT INTO Sessions (UserId, SessionDate, CorrectAnswers, ElapsedSeconds, Efficiency, WithMusic)
                 VALUES (?, ?, ?, ?, ?, 0)
-            """, (self.user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.correct_answers, self.elapsed_seconds, tasks_per_second))
+            """, (self.user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.correct_answers, self.elapsed_seconds, efficiency))
             conn.commit()
             conn.close()
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", f"Не удалось сохранить результаты сессии: {e}")
 
-    def update_best_result(self, tasks_per_second):
+    # фукнция обновления базы данных
+    def update_best_result(self, efficiency):
         try:
             conn = sqlite3.connect("database/database.sqlite")
             cursor = conn.cursor()
-            cursor.execute("SELECT TasksPerSecondWithoutMusic FROM Investigated_Details WHERE UserId = ?", (self.user_id,))
+            cursor.execute("SELECT EfficiencyWithoutMusic FROM Investigated_Details WHERE UserId = ?", (self.user_id,))
             current_best = cursor.fetchone()[0]
-            # обновляем если текущий результат лучше или ещё не установлен
-            if current_best is None or tasks_per_second > current_best:
-                cursor.execute("UPDATE Investigated_Details SET TasksPerSecondWithoutMusic = ? WHERE UserId = ?",
-                              (tasks_per_second, self.user_id))
+
+            # Если текущий результат лучше (меньше) или ещё не установлен, обновляем
+            # При этом учитываем, что efficiency может быть бесконечностью
+            if self.correct_answers == 0:  
+                return
+            if current_best is None or efficiency < current_best:
+                cursor.execute("UPDATE Investigated_Details SET EfficiencyWithoutMusic = ? WHERE UserId = ?",
+                              (efficiency, self.user_id))
                 conn.commit()
             conn.close()
         except Exception as e:

@@ -519,7 +519,7 @@ class RegistrationWindow(QMainWindow):
             conn = sqlite3.connect("database/database.sqlite")
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT u.Full_name, u.Date_of_birth, id.Occupation, id.TasksPerSecondWithMusic, id.TasksPerSecondWithoutMusic
+                SELECT u.Id, u.Full_name, u.Date_of_birth, id.Occupation, id.EfficiencyWithMusic, id.EfficiencyWithoutMusic
                 FROM Users u
                 LEFT JOIN Investigated_Details id ON u.Id = id.UserId
                 WHERE u.Role = 'Исследуемый' AND u.ResearcherId = ?
@@ -530,14 +530,14 @@ class RegistrationWindow(QMainWindow):
             table = QTableWidget()
             table.setRowCount(len(subjects))
             table.setColumnCount(5)
-            table.setHorizontalHeaderLabels(["ФИО", "Дата рождения", "Род деятельности", "Задач/сек с музыкой", "Задач/сек без музыки"])
-            table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # растягиваем столбцы
+            table.setHorizontalHeaderLabels(["ФИО", "Дата рождения", "Род деятельности", "Эфф. с музыкой (сек/прав. отв.)", "Эфф. без музыки (сек/прав. отв.)"])
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
             # высота строк
             for row in range(len(subjects)):
                 table.setRowHeight(row, 40)  # Устанавливаем высоту строки 40 пикселей
 
-            # шрифт заголовкой
+            # шрифт заголовков
             header_font = QFont()
             header_font.setPointSize(8)  # Размер шрифта для заголовков
             table.horizontalHeader().setFont(header_font)
@@ -551,7 +551,6 @@ class RegistrationWindow(QMainWindow):
                     font.setPointSize(8)  # размер шрифта для ячеек
                     item.setFont(font)
                     table.setItem(row, col, item)
-
             self.panel_layout.addWidget(table)
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить данные: {e}")
