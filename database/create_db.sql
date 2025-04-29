@@ -28,3 +28,14 @@ CREATE TABLE Examples (
     Expression TEXT NOT NULL,
     CorrectAnswer INTEGER NOT NULL
 );
+
+CREATE TABLE Sessions (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    UserId INTEGER NOT NULL,
+    SessionDate TEXT NOT NULL,
+    CorrectAnswers INTEGER NOT NULL,
+    ElapsedSeconds INTEGER NOT NULL,
+    TasksPerSecond REAL NOT NULL,
+    WithMusic INTEGER NOT NULL DEFAULT 0,     -- 0: без музыки, 1: с музыкой 
+    FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
