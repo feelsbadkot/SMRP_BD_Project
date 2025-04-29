@@ -37,7 +37,12 @@ class TestWindow(QMainWindow):
         self.answer_input = QLineEdit()
         self.answer_input.setPlaceholderText("Введите ответ")
         self.answer_input.setStyleSheet("padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 5px;")
+        # Привязываем сигнал returnPressed к методу next_task
+        self.answer_input.returnPressed.connect(self.next_task)
         self.layout.addWidget(self.answer_input)
+
+        # устанавливаем фокус на поле ввода при запуске
+        self.answer_input.setFocus()
 
         # таймер
         self.timer_label = QLabel("Время: 0 сек")
@@ -94,6 +99,8 @@ class TestWindow(QMainWindow):
         if self.current_index < len(self.example_ids):
             self.current_example = self.load_example(self.example_ids[self.current_index])
             self.example_label.setText(f"{self.current_example['expression']} =")
+            # устанавливаем фокус на поле ввода 
+            self.answer_input.setFocus()
         else:
             self.finish_test()
 
