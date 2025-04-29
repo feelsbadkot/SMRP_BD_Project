@@ -3,7 +3,7 @@ import random
 
 import sqlite3
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QCheckBox, QDateEdit, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView 
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QCheckBox, QDateEdit, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
 from PyQt5.QtGui import QPixmap, QPalette, QBrush, QFont
 from PyQt5.QtCore import Qt, QDate
 
@@ -552,14 +552,39 @@ class RegistrationWindow(QMainWindow):
     # окно исследователя после авторизации
     def show_researcher_dashboard(self, user_id):
         self.clear_layout()
-        self.registration_panel.setFixedSize(800, 500)  # Увеличиваем размер панели
+        self.registration_panel.setFixedSize(800, 600)
+        self.current_user_id = user_id
+
+        button_layout = QHBoxLayout()
+
+        self.subjects_button = QPushButton("Список исследуемых")
+        self.subjects_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.subjects_button.clicked.connect(lambda: self.show_subjects_table(user_id))
+        button_layout.addWidget(self.subjects_button)
+
+        self.history_button = QPushButton("История сессий")
+        self.history_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.history_button.clicked.connect(lambda: self.show_session_history(user_id))
+        button_layout.addWidget(self.history_button)
 
         logout_button = QPushButton("Выйти")
         logout_button.setStyleSheet("background-color: #f44336; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
         logout_button.clicked.connect(self.return_to_initial_form)
-        self.panel_layout.addWidget(logout_button)
+        button_layout.addWidget(logout_button)
 
-        # коннектимся к базе данных
+        self.panel_layout.addLayout(button_layout)
+
+        self.show_subjects_table(user_id)
+
+    def show_subjects_table(self, user_id):
+        # перед отображением новой таблицы очищаем текущую
+        while self.panel_layout.count() > 1:
+            item = self.panel_layout.takeAt(1)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+
+        # запрос к бд
         try:
             conn = sqlite3.connect("database/database.sqlite")
             cursor = conn.cursor()
@@ -574,31 +599,83 @@ class RegistrationWindow(QMainWindow):
 
             table = QTableWidget()
             table.setRowCount(len(subjects))
-            table.setColumnCount(5)
-            table.setHorizontalHeaderLabels(["ФИО", "Дата рождения", "Род деятельности", "Эфф. с музыкой (сек/прав. отв.)", "Эфф. без музыки (сек/прав. отв.)"])
+            table.setColumnCount(6)
+            table.setHorizontalHeaderLabels(["ID", "ФИО", "Дата рождения", "Род деятельности", "Эфф-сть с музыкой", "Эфф-сть без музыки"])
             table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            table.setEditTriggers(QTableWidget.NoEditTriggers)  # Делаем таблицу неизменяемой
 
-            # высота строк
             for row in range(len(subjects)):
-                table.setRowHeight(row, 40)  # Устанавливаем высоту строки 40 пикселей
+                table.setRowHeight(row, 40)
 
-            # шрифт заголовков
             header_font = QFont()
-            header_font.setPointSize(8)  # Размер шрифта для заголовков
+            header_font.setPointSize(8)
             table.horizontalHeader().setFont(header_font)
 
-            # заполняем таблицу
             for row, subject in enumerate(subjects):
                 for col, value in enumerate(subject):
                     item = QTableWidgetItem(str(value) if value is not None else "N/A")
                     item.setTextAlignment(Qt.AlignCenter)
                     font = QFont()
-                    font.setPointSize(8)  # размер шрифта для ячеек
+                    font.setPointSize(8)  # шрифт 8
                     item.setFont(font)
                     table.setItem(row, col, item)
+
             self.panel_layout.addWidget(table)
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить данные: {e}")
+
+    def show_session_history(self, user_id):
+        # перед отображением новой таблицы очищаем текущую
+        while self.panel_layout.count() > 1:
+            item = self.panel_layout.takeAt(1)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+
+        # запрос к бд
+        try:
+            conn = sqlite3.connect("database/database.sqlite")
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT s.Id, u.Full_name, s.SessionDate, s.CorrectAnswers, s.ElapsedSeconds, s.Efficiency, s.WithMusic
+                FROM Sessions s
+                JOIN Users u ON s.UserId = u.Id
+                WHERE u.Role = 'Исследуемый' AND u.ResearcherId = ?
+                ORDER BY s.SessionDate DESC
+            """, (user_id,))
+            sessions = cursor.fetchall()
+            conn.close()
+
+            table = QTableWidget()
+            table.setRowCount(len(sessions))
+            table.setColumnCount(7)
+            table.setHorizontalHeaderLabels(["ID сессии", "ФИО", "Дата сессии", "Правильных ответов", "Время (сек)", "Эфф-сть", "С музыкой"])
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            table.setEditTriggers(QTableWidget.NoEditTriggers)  # делаем таблицу неизменяемой
+
+            for row in range(len(sessions)):
+                table.setRowHeight(row, 40)
+
+            header_font = QFont()
+            header_font.setPointSize(8)
+            table.horizontalHeader().setFont(header_font)
+
+            for row, session in enumerate(sessions):
+                for col, value in enumerate(session):
+                    if col == 6:
+                        value = "Да" if value == 1 else "Нет"
+                    elif col == 5:
+                        value = f"{value:.2f}" if value != float('inf') else "∞"
+                    item = QTableWidgetItem(str(value))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    font = QFont()
+                    font.setPointSize(8)  # шрифт 8
+                    item.setFont(font)
+                    table.setItem(row, col, item)
+
+            self.panel_layout.addWidget(table)
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить историю сессий: {e}")
 
     # функция возврата к начальному состоянию
     def return_to_initial_form(self):
