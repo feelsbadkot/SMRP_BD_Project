@@ -56,7 +56,7 @@ INSERT INTO Users (Full_name, Login, Password, Role, Date_of_birth, ResearcherId
 ('Тихонов Максим Викторович', 'tikhonov', 'password123', 'Исследуемый', '1991-08-08', 5),
 ('Рыжова Анна Андреевна', 'ryzhova', 'password123', 'Исследуемый', '1994-09-09', 5);
 
-INSERT INTO Investigated_Details (UserId, Occupation, TasksPerSecondWithMusic, TasksPerSecondWithoutMusic) VALUES
+INSERT INTO Investigated_Details (UserId, Occupation, EfficiencyWithMusic, EfficiencyWithoutMusic) VALUES
 (6, 'Программист', 1.5, 1.2), (7, 'Дизайнер', 1.3, 1.0), (8, 'Учитель', 1.4, 1.1),
 (9, 'Инженер', 1.6, 1.3), (10, 'Менеджер', 1.2, 0.9), (11, 'Студент', 1.5, 1.2),
 (12, 'Фрилансер', 1.3, 1.0), (13, 'Аналитик', 1.4, 1.1), (14, 'Тестировщик', 1.5, 1.2),
