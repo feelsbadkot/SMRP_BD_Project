@@ -438,7 +438,7 @@ class RegistrationWindow(QMainWindow):
             
             # выполнение SQL-запроса по добавлению в таблицу исследованных
             cursor.execute("""
-                INSERT INTO Investigated_Details (UserId, Occupation, TasksPerSecondWithMusic, TasksPerSecondWithoutMusic)
+                INSERT INTO Investigated_Details (UserId, Occupation, EfficiencyWithMusic, EfficiencyWithoutMusic)
                 VALUES (?, ?, NULL, NULL)
             """, (user_id, occupation))
             
