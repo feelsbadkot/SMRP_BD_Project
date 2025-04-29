@@ -23,34 +23,8 @@ CREATE TABLE Researcher_Details (
     FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
 
-CREATE TABLE Musical_Composition (
+CREATE TABLE Examples (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
-    Genre TEXT,
-    Title TEXT,
-    Artist TEXT,
-    Year INTEGER,
-    Duration INTEGER
-);
-
-CREATE TABLE Task (
-    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-    Difficulty TEXT NOT NULL,
-    Type TEXT,
-    Answer TEXT
-);
-
-CREATE TABLE User_Musical_Composition (
-    UserId INTEGER,
-    MusicalCompositionId INTEGER,
-    PRIMARY KEY (UserId, MusicalCompositionId),
-    FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
-    FOREIGN KEY (MusicalCompositionId) REFERENCES Musical_Composition(Id) ON DELETE CASCADE
-);
-
-CREATE TABLE User_Task (
-    UserId INTEGER,
-    TaskId INTEGER,
-    PRIMARY KEY (UserId, TaskId),
-    FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
-    FOREIGN KEY (TaskId) REFERENCES Task(Id) ON DELETE CASCADE
+    Expression TEXT NOT NULL,
+    CorrectAnswer INTEGER NOT NULL
 );
