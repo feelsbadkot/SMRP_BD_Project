@@ -122,13 +122,19 @@ class TestWindow(QMainWindow):
         # обновляем лучший результат в базе данных
         self.update_best_result(efficiency)
 
-        # показываем результат
-        if self.correct_answers > 0:
-            efficiency_display = f"{efficiency:.2f}"
-        else:
-            efficiency_display = "inf"
+        # отображаемая эффективность
+        efficiency_display = f"{efficiency:.2f}" if self.correct_answers > 0 else "inf"
 
-        QMessageBox.information(self, "Результат", f"Тест завершён!\nПравильных ответов: {self.correct_answers}\nВремя: {self.elapsed_seconds} сек\nЭффективность (сек/правильный ответ): {efficiency_display}")
+        # показываем результат
+        QMessageBox.information(
+            self,
+            "Результат",
+            f"Тест завершён!\n"
+            f"Показанных заданий: {self.current_index}\n"
+            f"Правильных ответов: {self.correct_answers}\n"
+            f"Время: {self.elapsed_seconds} сек\n"
+            f"Эффективность (сек/правильный ответ): {efficiency_display}"
+        )
 
         # включаем кнопки родительского окна
         parent = self.parent()
