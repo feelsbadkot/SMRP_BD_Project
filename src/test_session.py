@@ -6,6 +6,7 @@ from PyQt5.QtCore import Qt, QTimer
 class TestWindow(QMainWindow):
     def __init__(self, user_id, example_ids, parent=None):
         super().__init__(parent)
+
         self.user_id = user_id
         self.example_ids = example_ids
 
@@ -129,8 +130,21 @@ class TestWindow(QMainWindow):
 
         QMessageBox.information(self, "Результат", f"Тест завершён!\nПравильных ответов: {self.correct_answers}\nВремя: {self.elapsed_seconds} сек\nЭффективность (сек/правильный ответ): {efficiency_display}")
 
+        # включаем кнопки родительского окна
+        parent = self.parent()
+        if parent and hasattr(parent, 'enable_buttons'):
+            parent.enable_buttons()
+
         # закрываем окно теста
         self.close()
+
+    def closeEvent(self, event):
+        # останавливаем таймер и включаем кнопки при закрытии окна
+        self.timer.stop()
+        parent = self.parent()
+        if parent and hasattr(parent, 'enable_buttons'):
+            parent.enable_buttons()
+        event.accept()
             
     # функций сохранения результатов в базу данных
     def save_to_db(self, efficiency):

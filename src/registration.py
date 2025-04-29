@@ -38,6 +38,11 @@ class RegistrationWindow(QMainWindow):
         # располагаем панель регистрации по центру
         self.layout.addWidget(self.registration_panel, alignment=Qt.AlignCenter)
 
+        self.start_test_button = None
+        self.logout_button = None
+
+        self.is_test_running = False
+
     # функция подключения фона
     def set_background(self):
         pixmap = QPixmap("figures/background.jpg")
@@ -494,15 +499,43 @@ class RegistrationWindow(QMainWindow):
         self.clear_layout()
         self.registration_panel.setFixedSize(300, 200)
 
-        start_test_button = QPushButton("Начать тест")
-        start_test_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
-        start_test_button.clicked.connect(lambda: self.start_test(user_id))
-        self.panel_layout.addWidget(start_test_button)
+        self.start_test_button = QPushButton("Начать тест")
+        self.start_test_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.start_test_button.clicked.connect(lambda: self.start_test(user_id))
+        self.panel_layout.addWidget(self.start_test_button)
 
-        logout_button = QPushButton("Выйти")
-        logout_button.setStyleSheet("background-color: #f44336; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
-        logout_button.clicked.connect(self.return_to_initial_form)
-        self.panel_layout.addWidget(logout_button)
+        self.logout_button = QPushButton("Выйти")
+        self.logout_button.setStyleSheet("background-color: #f44336; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.logout_button.clicked.connect(self.return_to_initial_form)
+        self.panel_layout.addWidget(self.logout_button)
+
+        self.enable_buttons()
+
+    # функция старта теста
+    def start_test(self, user_id):
+        self.is_test_running = True
+        self.disable_buttons()
+
+        total_examples = 10000 
+        example_ids = random.sample(range(1, total_examples + 1), total_examples)  
+
+        self.test_window = TestWindow(user_id, example_ids, self)
+        self.test_window.show()
+
+    #  функция выключения кнопок главного окна при старте теста
+    def disable_buttons(self):
+        if self.start_test_button:
+            self.start_test_button.setEnabled(False)
+        if self.logout_button:
+            self.logout_button.setEnabled(False)
+
+    #  функция включения кнопок главного окна при окончании теста
+    def enable_buttons(self):
+        if self.start_test_button:
+            self.start_test_button.setEnabled(True)
+        if self.logout_button:
+            self.logout_button.setEnabled(True)
+        self.is_test_running = False
 
     # окно исследователя после авторизации
     def show_researcher_dashboard(self, user_id):
@@ -560,16 +593,6 @@ class RegistrationWindow(QMainWindow):
         self.clear_layout()
         self.registration_panel.setFixedSize(300, 450)
         self.run_initial_form()
-
-    # старт теста
-    def start_test(self, user_id):
-        # формируем очередь из 10000 id примеров в случайном порядке
-        total_examples = 10000  
-        example_ids = random.sample(range(1, total_examples + 1), total_examples)  
-
-        # окно теста
-        self.test_window = TestWindow(user_id, example_ids, self)
-        self.test_window.show()
 
 
 if __name__ == '__main__':
