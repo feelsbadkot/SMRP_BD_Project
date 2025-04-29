@@ -499,11 +499,19 @@ class RegistrationWindow(QMainWindow):
         self.clear_layout()
         self.registration_panel.setFixedSize(300, 200)
 
-        self.start_test_button = QPushButton("Начать тест")
-        self.start_test_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
-        self.start_test_button.clicked.connect(lambda: self.start_test(user_id))
-        self.panel_layout.addWidget(self.start_test_button)
+        # кнопка начала теста с музыкой
+        self.start_test_with_music_button = QPushButton("Начать тест с музыкой")
+        self.start_test_with_music_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.start_test_with_music_button.clicked.connect(lambda: self.start_test(user_id, with_music=True))
+        self.panel_layout.addWidget(self.start_test_with_music_button)
 
+        # кнопка начала теста без музыки
+        self.start_test_without_music_button = QPushButton("Начать тест без музыки")
+        self.start_test_without_music_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        self.start_test_without_music_button.clicked.connect(lambda: self.start_test(user_id, with_music=False))
+        self.panel_layout.addWidget(self.start_test_without_music_button)
+
+        # кнопка выхода
         self.logout_button = QPushButton("Выйти")
         self.logout_button.setStyleSheet("background-color: #f44336; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
         self.logout_button.clicked.connect(self.return_to_initial_form)
@@ -512,27 +520,31 @@ class RegistrationWindow(QMainWindow):
         self.enable_buttons()
 
     # функция старта теста
-    def start_test(self, user_id):
+    def start_test(self, user_id, with_music):
         self.is_test_running = True
         self.disable_buttons()
 
         total_examples = 10000 
         example_ids = random.sample(range(1, total_examples + 1), total_examples)  
 
-        self.test_window = TestWindow(user_id, example_ids, self)
+        self.test_window = TestWindow(user_id, example_ids, with_music=with_music, parent=self)
         self.test_window.show()
 
     #  функция выключения кнопок главного окна при старте теста
     def disable_buttons(self):
-        if self.start_test_button:
-            self.start_test_button.setEnabled(False)
+        if self.start_test_with_music_button:
+            self.start_test_with_music_button.setEnabled(False)
+        if self.start_test_without_music_button:
+            self.start_test_without_music_button.setEnabled(False)
         if self.logout_button:
             self.logout_button.setEnabled(False)
 
     #  функция включения кнопок главного окна при окончании теста
     def enable_buttons(self):
-        if self.start_test_button:
-            self.start_test_button.setEnabled(True)
+        if self.start_test_with_music_button:
+            self.start_test_with_music_button.setEnabled(True)
+        if self.start_test_without_music_button:
+            self.start_test_without_music_button.setEnabled(True)
         if self.logout_button:
             self.logout_button.setEnabled(True)
         self.is_test_running = False

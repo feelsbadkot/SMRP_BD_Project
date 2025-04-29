@@ -1,14 +1,20 @@
-import sqlite3
+import random
 from datetime import datetime
+from pathlib import Path
+
+import sqlite3
+
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox
 from PyQt5.QtCore import Qt, QTimer
+import vlc
 
 class TestWindow(QMainWindow):
-    def __init__(self, user_id, example_ids, parent=None):
+    def __init__(self, user_id, example_ids, with_music=False, parent=None):
         super().__init__(parent)
 
         self.user_id = user_id
         self.example_ids = example_ids
+        self.with_music = with_music  # флаг на воспроизведение музыки (0 - нет музыки, 1 - есть)
 
         self.current_index = 0
         self.correct_answers = 0
@@ -22,7 +28,7 @@ class TestWindow(QMainWindow):
         self.elapsed_seconds = 0
 
         # размеры окна
-        self.setWindowTitle("Тест без музыки")
+        self.setWindowTitle("Тест с музыкой" if self.with_music else "Тест без музыки")
         self.setGeometry(200, 200, 400, 300)
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
@@ -64,6 +70,30 @@ class TestWindow(QMainWindow):
         self.finish_button.clicked.connect(self.finish_test)
         self.layout.addWidget(self.finish_button)
 
+        # если тест с музыкой включаем ее
+        if self.with_music:
+            self.setup_music()
+
+    def setup_music(self):
+        # загружаем все композиции из базы данных
+        self.music_tracks = self.load_music_tracks()
+        if not self.music_tracks:
+            QMessageBox.warning(self, "Ошибка", "Не удалось загрузить музыкальные композиции. Тест продолжится без музыки.")
+            self.with_music = False
+            return
+
+        # формируем очередь из 10 композиций
+        self.music_queue = random.sample(self.music_tracks, min(10, len(self.music_tracks)))
+        self.current_music_index = 0
+
+        # Инициализируем VLC
+        self.vlc_instance = vlc.Instance()
+        self.player = self.vlc_instance.media_player_new()
+        self.player.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached, self.on_media_ended)
+
+        # Начинаем воспроизведение первой композиции
+        self.play_next_track()
+
     # функция загрузки примера из бд
     def load_example(self, example_id):
         try:
@@ -76,6 +106,40 @@ class TestWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить пример: {e}")
             return None
+        
+    # функция загрузки треков из БД
+    def load_music_tracks(self):
+        try:
+            conn = sqlite3.connect("database/database.sqlite")
+            cursor = conn.cursor()
+            cursor.execute("SELECT Id, Author, Title, Duration, FilePath FROM Music")
+            tracks = cursor.fetchall()
+            conn.close()
+            return [{"Id": t[0], "Author": t[1], "Title": t[2], "Duration": t[3], "FilePath": t[4]} for t in tracks]
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить музыку: {e}")
+            return []
+
+    # функция запуска следующего трека
+    def play_next_track(self):
+        # зацикливаемся если треки в очереди кончились
+        if self.current_music_index >= len(self.music_queue):
+            self.current_music_index = 0
+
+        # подгружаем трек из очереди и формируем его полный путь
+        track = self.music_queue[self.current_music_index]
+        file_path = track["FilePath"]
+        absolute_path = str(Path(file_path).resolve())
+    
+        # запускаем плеер
+        media = self.vlc_instance.media_new(absolute_path)
+        self.player.set_media(media)
+        self.player.play()
+        self.current_music_index += 1
+
+    # обработка события, когда песня закончилась
+    def on_media_ended(self, event):
+        self.play_next_track()
 
     # функция обновления таймера
     def update_timer(self):
@@ -112,6 +176,10 @@ class TestWindow(QMainWindow):
     def finish_test(self):
         # останавливаем таймер
         self.timer.stop()
+
+        # останавливаем музыку
+        if self.with_music and hasattr(self, 'player'):
+            self.player.stop()
         
         # вычисляем эффективность: число секунд / число правильных ответов
         if self.correct_answers > 0:
@@ -150,6 +218,8 @@ class TestWindow(QMainWindow):
     def closeEvent(self, event):
         # останавливаем таймер и включаем кнопки при закрытии окна
         self.timer.stop()
+        if self.with_music and hasattr(self, 'player'):
+            self.player.stop()
         parent = self.parent()
         if parent and hasattr(parent, 'enable_buttons'):
             parent.enable_buttons()
@@ -162,8 +232,8 @@ class TestWindow(QMainWindow):
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO Sessions (UserId, SessionDate, CorrectAnswers, ElapsedSeconds, Efficiency, WithMusic)
-                VALUES (?, ?, ?, ?, ?, 0)
-            """, (self.user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.correct_answers, self.elapsed_seconds, efficiency))
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (self.user_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.correct_answers, self.elapsed_seconds, efficiency, 1 if self.with_music else 0))
             conn.commit()
             conn.close()
         except Exception as e:
@@ -174,17 +244,17 @@ class TestWindow(QMainWindow):
         try:
             conn = sqlite3.connect("database/database.sqlite")
             cursor = conn.cursor()
-            cursor.execute("SELECT EfficiencyWithoutMusic FROM Investigated_Details WHERE UserId = ?", (self.user_id,))
+            field = "EfficiencyWithMusic" if self.with_music else "EfficiencyWithoutMusic"
+            cursor.execute(f"SELECT {field} FROM Investigated_Details WHERE UserId = ?", (self.user_id,))
             current_best = cursor.fetchone()[0]
 
-            # Если текущий результат лучше (меньше) или ещё не установлен, обновляем
-            # При этом учитываем, что efficiency может быть бесконечностью
-            if self.correct_answers == 0:  
+            if self.correct_answers == 0:
                 return
             if current_best is None or efficiency < current_best:
-                cursor.execute("UPDATE Investigated_Details SET EfficiencyWithoutMusic = ? WHERE UserId = ?",
+                cursor.execute(f"UPDATE Investigated_Details SET {field} = ? WHERE UserId = ?",
                               (efficiency, self.user_id))
                 conn.commit()
+
             conn.close()
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", f"Не удалось обновить лучший результат: {e}")
