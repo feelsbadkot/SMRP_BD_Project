@@ -14,6 +14,7 @@ class TestWindow(QMainWindow):
         self.correct_answers = 0
 
         # подключение таймера
+        self.max_test_time = 300
         self.start_time = datetime.now()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_timer)
@@ -80,6 +81,8 @@ class TestWindow(QMainWindow):
     def update_timer(self):
         self.elapsed_seconds += 1
         self.timer_label.setText(f"Время: {self.elapsed_seconds} сек")
+        if self.elapsed_seconds >= self.max_test_time:
+            self.finish_test()
 
     # функция смены примера
     def next_task(self):
