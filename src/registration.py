@@ -1,8 +1,13 @@
 import sys
+import random
+
 import sqlite3
+
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QCheckBox, QDateEdit, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView 
 from PyQt5.QtGui import QPixmap, QPalette, QBrush, QFont
 from PyQt5.QtCore import Qt, QDate
+
+from test_session import TestWindow
 
 
 class RegistrationWindow(QMainWindow):
@@ -469,7 +474,6 @@ class RegistrationWindow(QMainWindow):
             cursor = conn.cursor()
             cursor.execute("SELECT Id, Password, Role FROM Users WHERE Login = ?", (login,))
             user = cursor.fetchone()
-
             if user and user[1] == password:
                 user_id, _, role = user
                 if role == 'Исследуемый' and self.investigated_checkbox.isChecked():
@@ -492,6 +496,7 @@ class RegistrationWindow(QMainWindow):
 
         start_test_button = QPushButton("Начать тест")
         start_test_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-size: 14px; border: none; border-radius: 5px;")
+        start_test_button.clicked.connect(lambda: self.start_test(user_id))
         self.panel_layout.addWidget(start_test_button)
 
         logout_button = QPushButton("Выйти")
@@ -551,10 +556,21 @@ class RegistrationWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить данные: {e}")
 
+    # функция возврата к начальному состоянию
     def return_to_initial_form(self):
         self.clear_layout()
         self.registration_panel.setFixedSize(300, 450)
         self.run_initial_form()
+
+    # старт теста
+    def start_test(self, user_id):
+        # формируем очередь из 10000 id примеров в случайном порядке
+        total_examples = 10000  
+        example_ids = random.sample(range(1, total_examples + 1), total_examples)  
+
+        # окно теста
+        self.test_window = TestWindow(user_id, example_ids, self)
+        self.test_window.show()
 
 
 if __name__ == '__main__':
